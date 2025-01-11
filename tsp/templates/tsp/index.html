@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TSP Solver</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .city-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result-image {
+            max-width: 100%;
+            height: auto;
+        }
+        .tour-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 5px;
+            font-size: 0.875rem;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">TSP Solver using A* Algorithm</h1>
+        
+        <div class="row">
+            <!-- City Input Form -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Add City</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="cityForm">
+                            <div class="mb-3">
+                                <label for="cityName" class="form-label">City Name</label>
+                                <input type="text" class="form-control" id="cityName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="xCoord" class="form-label">X Coordinate</label>
+                                <input type="number" step="any" class="form-control" id="xCoord" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="yCoord" class="form-label">Y Coordinate</label>
+                                <input type="number" step="any" class="form-control" id="yCoord" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add City</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Distance Input Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Add Distance</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="distanceForm">
+                            <div class="mb-3">
+                                <label for="city1" class="form-label">From City</label>
+                                <select class="form-select" id="city1" required>
+                                    <option value="">Select a city</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="city2" class="form-label">To City</label>
+                                <select class="form-select" id="city2" required>
+                                    <option value="">Select a city</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="distance" class="form-label">Distance</label>
+                                <input type="number" step="any" min="0" class="form-control" id="distance" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Distance</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cities and Distances Tables -->
+            <div class="col-md-6">
+                <!-- Cities Table -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Cities</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="city-list">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>X Coordinate</th>
+                                        <th>Y Coordinate</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="citiesTable">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Distances Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Distances</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="city-list">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Distance</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="distancesTable">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Solve Button -->
+        <div class="text-center mt-4">
+            <button id="solveButton" class="btn btn-success btn-lg">Find Optimal Route</button>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading">
+            <div class="spinner-border loading-spinner text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Computing optimal route...</p>
+        </div>
+        
+        <!-- Results Section -->
+        <div id="results" class="mt-4" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="tour-info">
+                        <h6>Optimal Tour:</h6>
+                        <p id="tourPath"></p>
+                        <h6>Total Distance:</h6>
+                        <p id="tourDistance"></p>
+                    </div>
+                    <div class="text-center mt-3">
+                        <img id="tourVisualization" class="result-image" alt="Tour Visualization">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Store cities and distances
+        let cities = [];
+        let distances = [];
+
+        // Update city dropdowns
+        function updateCityDropdowns() {
+            const dropdowns = [document.getElementById('city1'), document.getElementById('city2')];
+            dropdowns.forEach(dropdown => {
+                const currentValue = dropdown.value;
+                dropdown.innerHTML = '<option value="">Select a city</option>';
+                cities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city.id;
+                    option.textContent = city.name;
+                    dropdown.appendChild(option);
+                });
+                dropdown.value = currentValue;
+            });
+        }
+
+        // Update cities table
+        function updateCitiesTable() {
+            const tbody = document.getElementById('citiesTable');
+            tbody.innerHTML = '';
+            cities.forEach(city => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${city.name}</td>
+                    <td>${city.x_coord}</td>
+                    <td>${city.y_coord}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Update distances table
+        function updateDistancesTable() {
+            const tbody = document.getElementById('distancesTable');
+            tbody.innerHTML = '';
+            distances.forEach(distance => {
+                const city1 = cities.find(c => c.id === parseInt(distance.city1));
+                const city2 = cities.find(c => c.id === parseInt(distance.city2));
+                if (city1 && city2) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${city1.name}</td>
+                        <td>${city2.name}</td>
+                        <td>${distance.distance}</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+            });
+        }
+
+        // Show error message
+        function showError(element, message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            element.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        // Add city form submission
+        document.getElementById('cityForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = {
+                name: document.getElementById('cityName').value,
+                x: document.getElementById('xCoord').value,
+                y: document.getElementById('yCoord').value
+            };
+
+            try {
+                const response = await fetch('/add_city/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    cities.push(data);
+                    updateCitiesTable();
+                    updateCityDropdowns();
+                    form.reset();
+                } else {
+                    showError(form, data.error);
+                }
+            } catch (error) {
+                showError(form, 'An error occurred while adding the city');
+            }
+        });
+
+        // Add distance form submission
+        document.getElementById('distanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const city1 = document.getElementById('city1').value;
+            const city2 = document.getElementById('city2').value;
+            
+            // Validate different cities
+            if (city1 === city2) {
+                showError(form, 'Cannot set distance from a city to itself');
+                return;
+            }
+            
+            const formData = {
+                city1: city1,
+                city2: city2,
+                distance: document.getElementById('distance').value
+            };
+
+            try {
+                const response = await fetch('/add_distance/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    // Add both directions to our local state
+                    distances = distances.filter(d => 
+                        (d.city1 !== city1 || d.city2 !== city2) && 
+                        (d.city1 !== city2 || d.city2 !== city1)
+                    );
+                    distances.push(formData);
+                    distances.push({
+                        city1: city2,
+                        city2: city1,
+                        distance: formData.distance
+                    });
+                    updateDistancesTable();
+                    form.reset();
+                } else {
+                    showError(form, data.error);
+                }
+            } catch (error) {
+                showError(form, 'An error occurred while adding the distance');
+            }
+        });
+
+        // Solve TSP button click
+        document.getElementById('solveButton').addEventListener('click', async () => {
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            
+            try {
+                loading.style.display = 'block';
+                results.style.display = 'none';
+                
+                const response = await fetch('/solve/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('results').style.display = 'block';
+                    document.getElementById('tourPath').textContent = data.tour.map(city => city.name).join(' → ');
+                    document.getElementById('tourDistance').textContent = data.distance.toFixed(2);
+                    document.getElementById('tourVisualization').src = 'data:image/png;base64,' + data.visualization;
+                } else {
+                    showError(document.getElementById('solveButton').parentNode, data.error);
+                }
+            } catch (error) {
+                showError(document.getElementById('solveButton').parentNode, 'An error occurred while solving the TSP');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Load initial cities if any
+        updateCitiesTable();
+        updateDistancesTable();
+        updateCityDropdowns();
+    </script>
+</body>
+</html> 
